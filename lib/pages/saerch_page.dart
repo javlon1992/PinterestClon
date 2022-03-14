@@ -4,7 +4,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:multi_network_api/models/unsplash_multi_model.dart';
 import 'package:multi_network_api/services/http_service.dart';
 import 'package:multi_network_api/services/log_service.dart';
-import 'detale_page.dart';
+import 'detail_page.dart';
 
 class SearchPage extends StatefulWidget {
   static String id="/search_page";
@@ -14,7 +14,7 @@ class SearchPage extends StatefulWidget {
   _SearchPageState createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage> with AutomaticKeepAliveClientMixin{
   List<Unsplash> listSplash = [];
   String searching = "";
   int selectedIndex = 0, page = 1;
@@ -24,7 +24,6 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
-    //_apiUnSplashList();
     _apiUnSplashSearch(searching);
     _scrollController.addListener(() {
       if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
@@ -33,6 +32,10 @@ class _SearchPageState extends State<SearchPage> {
       }
     });
   }
+
+  @override
+  // TODO: implement wantKeepAlive
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -46,7 +49,7 @@ class _SearchPageState extends State<SearchPage> {
     await Network.GET(Network.API_SEARCH, Network.paramsSearch(search, page++)).then((response) {
       if(response != null){
         listSplash.addAll(Network.parseUnSplashListSearch(response));
-        Log.w(listSplash.length.toString());
+        Log.w("SearchPage length: ${listSplash.length}");
         setState(() {});
       }
     });
@@ -83,7 +86,7 @@ class _SearchPageState extends State<SearchPage> {
           ),
 
         ),
-        body:  MasonryGridView.count(
+        body: MasonryGridView.count(
           controller: _scrollController,
           padding: EdgeInsets.symmetric(horizontal: 5),
           itemCount: listSplash.length,

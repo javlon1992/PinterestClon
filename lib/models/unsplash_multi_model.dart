@@ -27,6 +27,7 @@ class Unsplash {
     this.sponsorship,
     this.topicSubmissions,
     this.user,
+    this.tags,
   });
 
   String? id;
@@ -48,6 +49,7 @@ class Unsplash {
   Sponsorship? sponsorship;
   TopicSubmissions? topicSubmissions;
   User? user;
+  List<Tag>? tags;
 
   factory Unsplash.fromJson(Map<String, dynamic> json) => Unsplash(
     id: json["id"],
@@ -70,6 +72,7 @@ class Unsplash {
     sponsorship: (json["sponsorship"] != null) ? Sponsorship.fromJson(json["sponsorship"]) : null,
     topicSubmissions: TopicSubmissions.fromJson(json["topic_submissions"]),
     user: User.fromJson(json["user"]),
+    tags: List<Tag>.from(json["tags"].map((x) => Tag.fromJson(x))),
   );
 
   Map<String, dynamic> toJson() => {
@@ -93,6 +96,20 @@ class Unsplash {
     "sponsorship": sponsorship!.toJson(),
     "topic_submissions": topicSubmissions!.toJson(),
     "user": user!.toJson(),
+    "tags": List<dynamic>.from(tags!.map((x) => x.toJson())),
+  };
+}
+
+class Tag {
+  Tag({this.title,});
+
+  String? title;
+  factory Tag.fromJson(Map<String, dynamic> json) => Tag(
+    title: json["title"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "title": title,
   };
 }
 

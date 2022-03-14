@@ -7,36 +7,40 @@ import 'package:multi_network_api/services/http_service.dart';
 import 'package:multi_network_api/services/log_service.dart';
 
 class DetailPage extends StatefulWidget {
-  static String id="detalepage";
+  static String id = "/detail_page";
   Unsplash? unsplash;
-  int? heroId;
-  DetailPage({Key? key,this.unsplash,this.heroId}) : super(key: key);
+  DetailPage({Key? key,this.unsplash}) : super(key: key);
 
   @override
   _DetailPageState createState() => _DetailPageState();
 }
 
-class _DetailPageState extends State<DetailPage> {
+class _DetailPageState extends State<DetailPage> with AutomaticKeepAliveClientMixin{
   List<Unsplash> listSplash = [];
-  String searching = "All";
+  late String searching = widget.unsplash!.tags!.first.title!;
   int page = 1;
+  bool loadMoreData = true;
   final ScrollController _scrollController = ScrollController();
 
 
   @override
   void initState() {
-    super.initState();
-    //_apiUnSplashList();
-    _apiUnSplashSearch(searching);
+
+    setState(() {_apiUnSplashSearch(searching);});
+
     _scrollController.addListener(() {
       if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
         if(listSplash.length<=470){
-          setState(() {
-            _apiUnSplashSearch(searching);
-          });}
+          loadMoreData = true;
+          setState(() {_apiUnSplashSearch(searching);});
+        }
       }
     });
   }
+
+  @override
+  // TODO: implement wantKeepAlive
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -45,18 +49,17 @@ class _DetailPageState extends State<DetailPage> {
   }
 
   void _apiUnSplashSearch(String search) async{
-
     if(searching != search) {searching = search; listSplash.clear(); page = 1;}
+
     await Network.GET(Network.API_SEARCH, Network.paramsSearch(search, page++)).then((response) {
-      if(response != null){
-
-          listSplash.addAll(Network.parseUnSplashListSearch(response));
-
-          Log.w(listSplash.length.toString());
-
-      }
-    }
-    );
+        if(response != null){
+          setState(() {
+            listSplash.addAll(Network.parseUnSplashListSearch(response));
+            loadMoreData = false;
+          });
+          Log.w("DetailPage length: ${listSplash.length}");
+        }
+    });
 
   }
 
@@ -73,7 +76,7 @@ class _DetailPageState extends State<DetailPage> {
               controller: _scrollController,
               children: [
                 Hero(
-                  tag: widget.heroId!,
+                  tag: widget.unsplash!,
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
                     child: CachedNetworkImage(
@@ -115,32 +118,36 @@ class _DetailPageState extends State<DetailPage> {
                 /// #Comments
                 buildComments(),
 
-                /// #GridView
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.vertical(top: Radius.circular(25))
                   ),
-                  padding: EdgeInsets.only(top: 20),
-                  child: Column(
-                    children: [
-                      Text("More like this",style: TextStyle(fontWeight: FontWeight.w700,fontSize: 22),),
-                      SizedBox(height: 15,),
+                  padding: EdgeInsets.only(top: 20,bottom: 15),
+                  child: Text("More like this",textAlign: TextAlign.center,style: TextStyle(fontWeight: FontWeight.w700,fontSize: 22),),),
 
-                      MasonryGridView.count(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      padding: EdgeInsets.symmetric(horizontal: 5),
-                      itemCount: listSplash.length,
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 6,
-                      crossAxisSpacing: 6,
-                      itemBuilder: (context, index) {
-                        return  buildBody(context, index);
-                      },
-                    ),
-                    ],
-                  )
+                /// #GridView
+                Container(
+                      color: Colors.white,
+                  child: MasonryGridView.count(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: 5),
+                    itemCount: listSplash.length,
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                    itemBuilder: (context, index) {
+                      return  buildBody(context, index);
+                    },
+                  ),
+                ),
+                Container(
+                  color: Colors.white,
+                  height: 50,width: MediaQuery.of(context).size.width,
+                  child: Visibility(
+                      visible: loadMoreData,
+                      child: const Center(child: CupertinoActivityIndicator(radius: 20,))),
                 ),
               ],
             ),
@@ -228,12 +235,12 @@ class _DetailPageState extends State<DetailPage> {
       children: [
         InkWell(
           onTap: (){
-            Navigator.of(context).push(MaterialPageRoute (builder: (BuildContext context) => DetailPage(unsplash:listSplash[index],heroId: index),
+            Navigator.of(context).push(MaterialPageRoute (builder: (BuildContext context) => DetailPage(unsplash:listSplash[index]),
             ),);
           },
           child: Hero(
             transitionOnUserGestures: true,
-            tag: index,
+            tag: listSplash[index],
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: CachedNetworkImage(

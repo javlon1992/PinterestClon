@@ -7,7 +7,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
 import 'package:multi_network_api/models/unsplash_multi_model.dart';
-import 'package:multi_network_api/pages/detale_page.dart';
+import 'package:multi_network_api/pages/detail_page.dart';
 import 'package:multi_network_api/pages/saerch_page.dart';
 import 'package:multi_network_api/services/http_service.dart';
 import 'package:multi_network_api/services/log_service.dart';
@@ -22,7 +22,7 @@ class HomePage extends StatefulWidget {
   _HomePageState createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin{
 
    List category = ["For you","Today","Football","Following","Health","Recipes","Car"];
    List<Unsplash> listSplash = [];
@@ -31,38 +31,45 @@ class _HomePageState extends State<HomePage> {
    final ScrollController _scrollController = ScrollController();
    final PageController _pageController = PageController();
    double downloadPercent = 0;
-   bool showDownloadIndicator = false;
+   bool showDownloadIndicator = false, loadMoreData = false;
 
   @override
   void initState() {
     super.initState();
-    //_apiUnSplashList();
     _apiUnSplashSearch(searching);
     _scrollController.addListener(() {
       if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
-        if(listSplash.length <= 470){
-        _apiUnSplashSearch(searching);}
+        if(listSplash.length <= 470) _apiUnSplashSearch(searching);
       }
     });
   }
+
+   @override
+   // TODO: implement wantKeepAlive
+   bool get wantKeepAlive => true;
 
   @override
   void dispose() {
     super.dispose();
     _scrollController.dispose();
+    _pageController.dispose();
   }
 
   void _apiUnSplashSearch(String search) async{
 
     if(searching != search) {searching = search; listSplash.clear(); page = 1;}
+    if(listSplash.isNotEmpty) setState(() {loadMoreData = true;});
      await Network.GET(Network.API_SEARCH, Network.paramsSearch(search, page++)).then((response) {
       if(response != null){
-         listSplash.addAll(Network.parseUnSplashListSearch(response));
-         Log.w(listSplash.length.toString());
-        setState(() {});
+         setState(() {
+           listSplash.addAll(Network.parseUnSplashListSearch(response));
+           loadMoreData = false;
+         });
+         Log.w("HomePage length: ${listSplash.length}");
       }
     });
   }
+
 
   void _downloadFile(String url,String filename) async {
      var permission = await _getPermission(Permission.storage);
@@ -131,6 +138,7 @@ class _HomePageState extends State<HomePage> {
    }
 
   void showSnackBar(var str){
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(str),
       dismissDirection: DismissDirection.none,
@@ -148,28 +156,44 @@ class _HomePageState extends State<HomePage> {
       /// #Category
         appBar:  selected == 0? buildCategory() : null,
       /// #Body
-        body: listSplash.isEmpty ?
-            LinearProgressIndicator(
-               backgroundColor: Colors.grey.shade100,
-               valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
-              )
-
-           : PageView(
-             controller: _pageController,
+        body: PageView(
+              scrollDirection: Axis.horizontal,
+              controller: _pageController,
               physics: NeverScrollableScrollPhysics(),
              children: [
-               MasonryGridView.count(
-                 controller: _scrollController,
-                       padding: EdgeInsets.symmetric(horizontal: 5),
-                       itemCount: listSplash.length,
-                       crossAxisCount: 2,
-                       mainAxisSpacing: 6,
-                       crossAxisSpacing: 6,
-                       itemBuilder: (context, index) {
-                         return  buildBody(context, index);
-                       },
-                     ),
-               SearchPage(key: PageStorageKey("SearchPage"),),
+               /// #HomePage
+               Column(
+                 children: [
+                   Visibility(
+                       visible: listSplash.isEmpty,
+                       child: LinearProgressIndicator(
+                         backgroundColor: Colors.grey.shade100,
+                         valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                       )),
+                   Expanded(
+                     child: MasonryGridView.count(
+                       key: const PageStorageKey<String>("HomePage"),
+                       controller: _scrollController,
+                             padding: EdgeInsets.symmetric(horizontal: 5),
+                             itemCount: listSplash.length,
+                             crossAxisCount: 2,
+                             mainAxisSpacing: 6,
+                             crossAxisSpacing: 6,
+                             itemBuilder: (context, index) {
+                               return  buildBody(context, index);
+                             },
+                           ),
+                   ),
+                   Visibility(
+                       visible: loadMoreData,
+                       child: LinearProgressIndicator(
+                         backgroundColor: Colors.grey.shade100,
+                         valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                       )),
+                 ],
+               ),
+               /// #SearchPage
+               SearchPage(),
              ],
            ),
       /// #BottomNavigationBar
@@ -180,11 +204,13 @@ class _HomePageState extends State<HomePage> {
           ),
           margin: EdgeInsets.only(left: 50,right: 50,bottom: 10),
           child: BottomNavigationBar(
-            // currentIndex: selected,
+            selectedItemColor: Colors.black,
+            unselectedItemColor: Colors.grey.shade600,
+            currentIndex: selected,
             onTap: (index){
               setState(() {
                 selected = index;
-                _pageController.jumpToPage(selected);
+                _pageController.animateToPage(selected, curve: Curves.easeInOut, duration: const Duration(milliseconds: 500));
               });
             },
             showSelectedLabels: false,
@@ -193,16 +219,17 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: Colors.transparent,
            type: BottomNavigationBarType.fixed,
            items: [
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.house_alt,color: Colors.black,), label: "",),
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.search,color: Colors.black), label: "",),
-            BottomNavigationBarItem(icon: Icon(CupertinoIcons.chat_bubble,color: Colors.black,), label: "",),
+            BottomNavigationBarItem(icon: Icon(CupertinoIcons.house_alt), label: "",),
+            BottomNavigationBarItem(icon: Icon(CupertinoIcons.search), label: "",),
+            BottomNavigationBarItem(icon: Icon(CupertinoIcons.chat_bubble), label: "",),
             BottomNavigationBarItem(icon: listSplash.isEmpty ?
             CircleAvatar(radius: 13,backgroundImage: AssetImage("assets/images/back_image.png")):
             CircleAvatar(radius: 13,backgroundImage: NetworkImage(listSplash.first.user!.profileImage!.medium!)),label: ""),
           ],
          ),
         ),
-      ));
+      ),
+    );
   }
 
   PreferredSize buildCategory() {
@@ -241,12 +268,12 @@ class _HomePageState extends State<HomePage> {
         InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: (){
-            Navigator.of(context).push(MaterialPageRoute (builder: (BuildContext context) => DetailPage(unsplash: listSplash[index],heroId: index),
+            Navigator.of(context).push(MaterialPageRoute (builder: (BuildContext context) => DetailPage(unsplash: listSplash[index],),
             ),);
           },
           child: Hero(
             transitionOnUserGestures: true,
-            tag: index,
+            tag: listSplash[index],
             child: ClipRRect(
               borderRadius: BorderRadius.circular(15),
               child: CachedNetworkImage(
@@ -367,4 +394,6 @@ class _HomePageState extends State<HomePage> {
     );
 
   }
+
+
 }

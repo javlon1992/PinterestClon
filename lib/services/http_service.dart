@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart';
 import 'package:multi_network_api/models/unsplash_multi_model.dart';
-import 'package:multi_network_api/models/employee_model.dart';
 import 'log_service.dart';
 
 class Network {
@@ -12,6 +11,7 @@ class Network {
 
   static Map<String, String> getHeaders() {
     Map<String, String> headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
       'Authorization': 'Client-ID sLy7DxJOs-rkxl2TqpgNrZz89z70WV-ecUyq9VGnncg',
       'Accept-Version': 'v1',
     };
@@ -39,8 +39,7 @@ class Network {
     var response = await post(uri, headers: getHeaders(), body: jsonEncode(params));
     Log.d(response.body);
 
-    if (response.statusCode == 200 || response.statusCode == 201)
-      return response.body;
+    if (response.statusCode == 200 || response.statusCode == 201) return response.body;
     return null;
   }
 
@@ -71,6 +70,19 @@ class Network {
     return null;
   }
 
+  static Future<String?> MULTIPART(String api, String filePath, Map<String,String> params) async{
+    var uri = Uri.https(getServer(), api);
+    var request = MultipartRequest("Post",uri);
+
+    request.headers.addAll(getHeaders());
+    request.fields.addAll(params);
+    request.files.add(await MultipartFile.fromPath("picture", filePath));
+    var response = await request.send();
+
+    if (response.statusCode == 200 || response.statusCode == 201) return response.reasonPhrase;
+    return null;
+  }
+
   /// /* Http Apis */
 
   static String API_LIST = "/photos";
@@ -84,12 +96,12 @@ class Network {
 
   static Map<String, String> paramsSearch(String search,int number) {
     Map<String, String> params = {
-      'query': search,'page': number.toString(), 'per_page': '15'};
+      'query': search,'page': number.toString(), 'per_page': "15"};
     return params;
   }
 
   static Map<String, String> paramsGetUnsplashPage(int number) {
-    Map<String, String> params = {'page': number.toString(), 'per_page': '15'};
+    Map<String, String> params = {'page': number.toString(), 'per_page': "15"};
     return params;
   }
 
