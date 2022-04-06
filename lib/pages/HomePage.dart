@@ -141,7 +141,7 @@ class _HomePageState extends State<HomePage> with AutomaticKeepAliveClientMixin{
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(str),
-      dismissDirection: DismissDirection.none,
+      dismissDirection: DismissDirection.up,
       behavior: SnackBarBehavior.floating,
       margin: EdgeInsets.only(bottom: MediaQuery.of(context).size.height * 0.70,left: 15,right: 15),
     ));
